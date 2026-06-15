@@ -11,6 +11,68 @@ import { Send, Upload, Paperclip, FileText, MoreVertical } from "lucide-react";
 import { sendEmailJS } from "@/lib/emailjs";
 import emailjs from "@emailjs/browser";
 
+const templates = {
+  "1": {
+    subject: "Frontend Developer Opportunity",
+    content: `Hello Hiring Team,
+
+My name is Tobi Babalola, a Frontend Developer specializing in React, Next.js and TypeScript.
+
+I came across your company and would love to explore opportunities where I can contribute to your team.
+
+My CV is attached below for your review.
+
+I look forward to hearing from you.
+
+Kind regards,
+Tobi Babalola`,
+  },
+
+  "2": {
+    subject: "Following Up On My Previous Email",
+    content: `Hello,
+
+I hope you're doing well.
+
+I'm following up on the email I sent previously regarding potential opportunities within your organization.
+
+I remain very interested and would appreciate any update when convenient.
+
+Thank you for your time.
+
+Kind regards,
+Tobi Babalola`,
+  },
+
+  "3": {
+    subject: "Proposal For Collaboration",
+    content: `Hello,
+
+Thank you for your time and consideration.
+
+I would love to discuss how my frontend development experience can contribute to your organization's goals.
+
+Please let me know if you'd be available for a brief conversation.
+
+Best regards,
+Tobi Babalola`,
+  },
+
+  "4": {
+    subject: "Final Follow Up",
+    content: `Hello,
+
+I wanted to send one final follow-up regarding my previous emails.
+
+I appreciate your time and consideration.
+
+Should an opportunity arise in the future, I would be delighted to connect.
+
+Best regards,
+Tobi Babalola`,
+  },
+};
+
 export default function ComposePage() {
   const [subject, setSubject] = useState("");
   const [to, setTo] = useState("");
@@ -21,6 +83,24 @@ export default function ComposePage() {
   const router = useRouter();
   const [companyName, setCompanyName] = useState("");
   const [companyWebsite, setCompanyWebsite] = useState("");
+  const [selectedTemplate, setSelectedTemplate] = useState("");
+
+  const handleTemplateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+
+    setSelectedTemplate(value);
+
+    if (!value) {
+      setSubject("");
+      setContent("");
+      return;
+    }
+
+    const template = templates[value as keyof typeof templates];
+
+    setSubject(template.subject);
+    setContent(template.content);
+  };
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -118,17 +198,17 @@ ${cvUrl}`
       // EMAILJS SEND (REPLACEMENT HERE)
       // ================================
       const emailRes = await emailjs.send(
-        "service_r6uvtpq",
-        "template_pzjrjpn",
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
         {
           to_email: to,
           subject: subject,
           message: messageWithCV,
           company_name: companyName,
           company_website: companyWebsite,
-          name: "there", // or recipientName if you add it later
+          name: "there", //
         },
-        "NezfupA8NZZrIbsXF",
+        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
       );
 
       console.log("EMAILJS RESPONSE:", emailRes);
@@ -253,7 +333,11 @@ ${cvUrl}`
               <label className="block text-sm font-medium text-foreground mb-2">
                 Use Template
               </label>
-              <select className="w-full px-4 py-2 rounded-lg border border-border bg-card text-foreground text-sm">
+              <select
+                value={selectedTemplate}
+                onChange={handleTemplateChange}
+                className="w-full px-4 py-2 rounded-lg border border-border bg-card text-foreground text-sm"
+              >
                 <option value="">Start from blank</option>
                 <option value="1">Initial Outreach</option>
                 <option value="2">Follow-up - No Response</option>
