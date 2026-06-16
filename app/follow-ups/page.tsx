@@ -1,9 +1,10 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Card } from '@/components/cards'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Card } from "@/components/cards";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Calendar,
   Clock,
@@ -11,274 +12,220 @@ import {
   AlertCircle,
   Plus,
   Mail,
-} from 'lucide-react'
-
-interface FollowUp {
-  id: string
-  leadName: string
-  email: string
-  dueDate: string
-  status: 'pending' | 'completed' | 'overdue'
-  lastContact: string
-  attempts: number
-}
-
-const mockFollowUps: FollowUp[] = [
-  {
-    id: '1',
-    leadName: 'Sarah Johnson',
-    email: 'sarah@techcorp.com',
-    dueDate: '2024-06-14',
-    status: 'pending',
-    lastContact: '2024-06-10',
-    attempts: 1,
-  },
-  {
-    id: '2',
-    leadName: 'Emma Rodriguez',
-    email: 'emma@datavizpro.com',
-    dueDate: '2024-06-19',
-    status: 'pending',
-    lastContact: '2024-06-12',
-    attempts: 1,
-  },
-  {
-    id: '3',
-    leadName: 'James Wilson',
-    email: 'james@cloudfirst.com',
-    dueDate: '2024-06-14',
-    status: 'pending',
-    lastContact: 'N/A',
-    attempts: 0,
-  },
-  {
-    id: '4',
-    leadName: 'Michael Chen',
-    email: 'michael@innovatelabs.com',
-    dueDate: '2024-06-10',
-    status: 'overdue',
-    lastContact: '2024-06-08',
-    attempts: 2,
-  },
-  {
-    id: '5',
-    leadName: 'Jessica Lee',
-    email: 'jessica@futuretech.com',
-    dueDate: '2024-06-13',
-    status: 'overdue',
-    lastContact: '2024-06-11',
-    attempts: 1,
-  },
-]
+} from "lucide-react";
 
 const statusIcons = {
   pending: Clock,
   completed: CheckCircle,
   overdue: AlertCircle,
-}
+};
 
 const statusColors = {
-  pending: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+  pending: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   completed:
-    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
-  overdue: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
-}
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  overdue: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+};
 
 export default function FollowUpsPage() {
-  const [followUps, setFollowUps] = useState(mockFollowUps)
-  const [selectedStatus, setSelectedStatus] = useState<string | null>(null)
+  const [followUps, setFollowUps] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
 
-  const filteredFollowUps = selectedStatus
-    ? followUps.filter((fu) => fu.status === selectedStatus)
-    : followUps
+  // =========================
+  // FETCH LEADS FROM SUPABASE
+  // =========================
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
 
-  const overdueCount = followUps.filter((fu) => fu.status === 'overdue').length
-  const pendingCount = followUps.filter((fu) => fu.status === 'pending').length
-  const completedCount = followUps.filter((fu) => fu.status === 'completed')
-    .length
+      const { data, error } = await supabase
+        .from("leads")
+        .select("*")
+        .order("follow_up_date", { ascending: true });
 
-  const handleMarkComplete = (id: string) => {
-    setFollowUps(
-      followUps.map((fu) =>
-        fu.id === id ? { ...fu, status: 'completed' as const } : fu
-      )
-    )
+      if (error) {
+        console.error(error);
+      }
+
+      setFollowUps(data || []);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, []);
+
+  // =========================
+  // DERIVE STATUS DYNAMICALLY
+  // =========================
+  const enrichedFollowUps = useMemo(() => {
+    const today = new Date();
+
+    return followUps.map((lead) => {
+      const dueDate = lead.follow_up_date
+        ? new Date(lead.follow_up_date)
+        : null;
+
+      let status = lead.status || "pending";
+
+      if (status !== "completed") {
+        if (dueDate && dueDate < today) {
+          status = "overdue";
+        } else {
+          status = "pending";
+        }
+      }
+
+      return {
+        ...lead,
+        status,
+      };
+    });
+  }, [followUps]);
+
+  // =========================
+  // FILTER LOGIC
+  // =========================
+  const filteredFollowUps = useMemo(() => {
+    return enrichedFollowUps.filter((lead) => {
+      const matchesStatus = !selectedStatus || lead.status === selectedStatus;
+
+      return matchesStatus;
+    });
+  }, [enrichedFollowUps, selectedStatus]);
+
+  // =========================
+  // COUNTERS
+  // =========================
+  const overdueCount = enrichedFollowUps.filter(
+    (l) => l.status === "overdue",
+  ).length;
+  const pendingCount = enrichedFollowUps.filter(
+    (l) => l.status === "pending",
+  ).length;
+  const completedCount = enrichedFollowUps.filter(
+    (l) => l.status === "completed",
+  ).length;
+
+  // =========================
+  // MARK COMPLETE
+  // =========================
+  const handleMarkComplete = async (id: string) => {
+    await supabase.from("leads").update({ status: "completed" }).eq("id", id);
+
+    setFollowUps((prev) =>
+      prev.map((lead) =>
+        lead.id === id ? { ...lead, status: "completed" } : lead,
+      ),
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 text-muted-foreground">Loading follow-ups...</div>
+    );
   }
 
   return (
     <div className="p-8">
-      {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      {/* HEADER */}
+      <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Follow-ups</h1>
-          <p className="text-muted-foreground mt-2">
+          <h1 className="text-3xl font-bold">Follow-ups</h1>
+          <p className="text-muted-foreground">
             Manage your customer follow-up schedule
           </p>
         </div>
+
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
           Schedule Follow-up
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      {/* STATS */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
         <Card>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Due Today
-            </p>
-            <p className="text-3xl font-bold text-foreground">{pendingCount}</p>
-            <p className="text-xs text-muted-foreground">
-              Pending follow-ups
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">Due</p>
+          <p className="text-2xl font-bold">{pendingCount}</p>
         </Card>
+
         <Card>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Overdue
-            </p>
-            <p className="text-3xl font-bold text-red-600 dark:text-red-400">
-              {overdueCount}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Need immediate attention
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">Overdue</p>
+          <p className="text-2xl font-bold text-red-500">{overdueCount}</p>
         </Card>
+
         <Card>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              Completed
-            </p>
-            <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-              {completedCount}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              This month
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">Completed</p>
+          <p className="text-2xl font-bold text-green-500">{completedCount}</p>
         </Card>
       </div>
 
-      {/* Filter Buttons */}
-      <div className="mb-6 flex gap-2 flex-wrap">
-        {[
-          { value: null, label: 'All', count: followUps.length },
-          {
-            value: 'overdue',
-            label: 'Overdue',
-            count: overdueCount,
-          },
-          {
-            value: 'pending',
-            label: 'Pending',
-            count: pendingCount,
-          },
-          {
-            value: 'completed',
-            label: 'Completed',
-            count: completedCount,
-          },
-        ].map((status) => (
+      {/* FILTER */}
+      <div className="flex gap-2 mb-6">
+        {["all", "pending", "overdue", "completed"].map((type) => (
           <button
-            key={status.value || 'all'}
-            onClick={() => setSelectedStatus(status.value)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedStatus === status.value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-foreground hover:bg-muted/80'
+            key={type}
+            onClick={() => setSelectedStatus(type === "all" ? null : type)}
+            className={`px-4 py-2 rounded-lg text-sm ${
+              selectedStatus === type || (type === "all" && !selectedStatus)
+                ? "bg-black text-white"
+                : "bg-gray-100"
             }`}
           >
-            {status.label} ({status.count})
+            {type}
           </button>
         ))}
       </div>
 
-      {/* Follow-ups List */}
-      <div className="space-y-3">
-        {filteredFollowUps.map((followUp) => {
-          const StatusIcon = statusIcons[followUp.status]
+      {/* LIST */}
+      <div className="space-y-4">
+        {filteredFollowUps.map((lead) => {
+          const StatusIcon = statusIcons[lead.status];
 
           return (
-            <Card key={followUp.id}>
-              <div className="flex flex-col md:flex-row md:items-center gap-4 justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-2">
-                    <div className={`p-2 rounded-lg ${statusColors[followUp.status]}`}>
-                      <StatusIcon className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        {followUp.leadName}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {followUp.email}
-                      </p>
-                    </div>
+            <Card key={lead.id} className="p-4">
+              <div className="flex justify-between items-center">
+                {/* LEFT */}
+                <div>
+                  <p className="font-semibold">{lead.company_name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {lead.company_email}
+                  </p>
+
+                  <div className="flex items-center gap-2 mt-2 text-sm">
+                    <Calendar className="w-4 h-4" />
+                    {lead.follow_up_date || "No date set"}
                   </div>
                 </div>
 
-                <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {followUp.dueDate}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">
-                      {followUp.attempts} attempts
-                    </span>
-                  </div>
-
-                  <Badge
-                    variant="default"
-                    className={statusColors[followUp.status]}
-                  >
-                    {followUp.status === 'pending'
-                      ? 'Pending'
-                      : followUp.status === 'overdue'
-                        ? 'Overdue'
-                        : 'Completed'}
+                {/* RIGHT */}
+                <div className="flex items-center gap-3">
+                  <Badge className={statusColors[lead.status]}>
+                    <StatusIcon className="w-3 h-3 mr-1" />
+                    {lead.status}
                   </Badge>
 
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      Edit
+                  {lead.status !== "completed" && (
+                    <Button
+                      size="sm"
+                      onClick={() => handleMarkComplete(lead.id)}
+                    >
+                      Mark Done
                     </Button>
-                    {followUp.status !== 'completed' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleMarkComplete(followUp.id)}
-                      >
-                        Mark Done
-                      </Button>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             </Card>
-          )
+          );
         })}
       </div>
 
       {filteredFollowUps.length === 0 && (
-        <Card>
-          <div className="text-center py-12">
-            <CheckCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-            <p className="text-foreground font-medium">No follow-ups found</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              {selectedStatus === 'completed'
-                ? 'You have no completed follow-ups'
-                : 'Great job! You are all caught up'}
-            </p>
-          </div>
+        <Card className="p-8 text-center text-muted-foreground">
+          No follow-ups found
         </Card>
       )}
     </div>
-  )
+  );
 }

@@ -16,14 +16,16 @@ import {
 } from "lucide-react";
 
 const statusColors: Record<string, string> = {
-  pending: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  contacted:
-    "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  interested:
-    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
-  qualified:
+  sent: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  follow_up_due:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  replied:
     "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  closed: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400",
+  interview:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  hired:
+    "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
 };
 
 export default function LeadsPage() {
@@ -32,6 +34,8 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+  const [showFollowUps, setShowFollowUps] = useState(false);
+  const [selectedLead, setSelectedLead] = useState<any>(null);
 
   // 🔥 FETCH REAL DATA
   useEffect(() => {
@@ -54,18 +58,25 @@ export default function LeadsPage() {
 
   // 🔍 FILTER LOGIC
   const filteredLeads = useMemo(() => {
-    return leads.filter((lead) => {
-      const search = searchTerm.toLowerCase();
+    const search = searchTerm.toLowerCase();
 
+    return leads.filter((lead) => {
       const matchesSearch =
         lead.company_name?.toLowerCase().includes(search) ||
         lead.company_email?.toLowerCase().includes(search);
 
       const matchesStatus = !statusFilter || lead.status === statusFilter;
 
-      return matchesSearch && matchesStatus;
+      const isDueToday =
+        lead.follow_up_date &&
+        new Date(lead.follow_up_date).toDateString() ===
+          new Date().toDateString();
+
+      const matchesFollowUp = !showFollowUps || isDueToday;
+
+      return matchesSearch && matchesStatus && matchesFollowUp;
     });
-  }, [searchTerm, statusFilter, leads]);
+  }, [searchTerm, statusFilter, leads, showFollowUps]);
 
   const totalPages = Math.ceil(filteredLeads.length / itemsPerPage);
 
@@ -100,6 +111,7 @@ export default function LeadsPage() {
     <div className="p-8">
       {/* Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        {/* LEFT SIDE */}
         <div>
           <h1 className="text-3xl font-bold text-foreground">Leads</h1>
           <p className="text-muted-foreground mt-2">
@@ -107,10 +119,20 @@ export default function LeadsPage() {
           </p>
         </div>
 
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Lead
-        </Button>
+        {/* RIGHT SIDE (BUTTON GROUP) */}
+        <div className="flex items-center gap-2">
+          <Button
+            variant={showFollowUps ? "default" : "outline"}
+            onClick={() => setShowFollowUps(!showFollowUps)}
+          >
+            Follow-ups Today
+          </Button>
+
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Lead
+          </Button>
+        </div>
       </div>
 
       {/* Search + Filter */}
@@ -168,9 +190,33 @@ export default function LeadsPage() {
                   </td>
 
                   <td className="p-3">
-                    <Badge className={statusColors[lead.status || "pending"]}>
-                      {lead.status || "pending"}
-                    </Badge>
+                    <select
+                      value={lead.status || "sent"}
+                      onChange={async (e) => {
+                        const newStatus = e.target.value;
+
+                        // update DB
+                        await supabase
+                          .from("leads")
+                          .update({ status: newStatus })
+                          .eq("id", lead.id);
+
+                        // update UI instantly (no refresh needed)
+                        setLeads((prev) =>
+                          prev.map((l) =>
+                            l.id === lead.id ? { ...l, status: newStatus } : l,
+                          ),
+                        );
+                      }}
+                      className="px-2 py-1 text-xs rounded border border-border bg-card text-foreground"
+                    >
+                      <option value="sent">Sent</option>
+                      <option value="follow_up_due">Follow Up Due</option>
+                      <option value="replied">Replied</option>
+                      <option value="interview">Interview</option>
+                      <option value="rejected">Rejected</option>
+                      <option value="hired">Hired</option>
+                    </select>
                   </td>
 
                   <td className="p-3 text-xs text-muted-foreground">
@@ -180,7 +226,10 @@ export default function LeadsPage() {
                   {/* ACTIONS */}
                   <td className="p-3 text-right flex justify-end gap-2">
                     {/* VIEW */}
-                    <button className="text-sm text-primary hover:underline">
+                    <button
+                      onClick={() => setSelectedLead(lead)}
+                      className="text-sm text-primary hover:underline"
+                    >
                       View
                     </button>
 
@@ -224,6 +273,27 @@ export default function LeadsPage() {
           </div>
         </div>
       </Card>
+      {selectedLead && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center">
+          <div className="bg-card p-6 rounded-lg w-[500px]">
+            <h2 className="text-lg font-bold">{selectedLead.company_name}</h2>
+
+            <p className="text-sm mt-2">{selectedLead.message}</p>
+
+            <a
+              href={selectedLead.cv_url}
+              target="_blank"
+              className="text-blue-500 underline"
+            >
+              View CV
+            </a>
+
+            <Button className="mt-4" onClick={() => setSelectedLead(null)}>
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
