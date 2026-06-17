@@ -206,7 +206,7 @@ ${cvUrl}`
           message: messageWithCV,
           company_name: companyName,
           company_website: companyWebsite,
-          name: "companyName", //
+          // name: "companyName", //
         },
         process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
       );
