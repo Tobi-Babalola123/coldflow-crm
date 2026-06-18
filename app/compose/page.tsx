@@ -221,7 +221,7 @@ ${cvUrl}`
       // ================================
       // SAVE LEAD (UNCHANGED)
       // ================================
-      await supabase.from("leads").insert({
+      const { error } = await supabase.from("leads").insert({
         company_email: to,
         company_name: companyName || "Unknown",
         company_website: companyWebsite || null,
