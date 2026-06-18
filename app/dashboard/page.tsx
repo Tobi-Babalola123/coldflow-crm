@@ -215,7 +215,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity (still component-based) */}
       <RecentActivity />
     </div>
   );
