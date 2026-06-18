@@ -22,7 +22,7 @@ I came across your company and would love to explore opportunities where I can c
 
 My CV is attached below for your review.
 
-I look forward to hearing from you.
+I look forward to hearing from you..
 
 Kind regards,
 Tobi Babalola`,
