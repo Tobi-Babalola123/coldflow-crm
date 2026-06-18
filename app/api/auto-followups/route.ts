@@ -1,17 +1,29 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
-function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+async function getSupabase() {
+  const { createClient } = await import("@supabase/supabase-js");
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    return null;
+  }
+
+  return createClient(url, key);
 }
 
 export async function GET() {
-  const supabase = getSupabase();
+  const supabase = await getSupabase();
+
+  if (!supabase) {
+    return NextResponse.json(
+      { error: "Supabase environment variables are missing" },
+      { status: 500 },
+    );
+  }
 
   const today = new Date().toISOString();
 
