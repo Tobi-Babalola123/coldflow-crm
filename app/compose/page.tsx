@@ -221,15 +221,28 @@ ${cvUrl}`
       // ================================
       // SAVE LEAD (UNCHANGED)
       // ================================
-      const { error } = await supabase.from("leads").insert({
+      await supabase.from("leads").insert({
         company_email: to,
         company_name: companyName || "Unknown",
         company_website: companyWebsite || null,
+
         subject,
         message: content,
+
         cv_url: cvPath,
+
         status: "sent",
+
         sent_date: new Date().toISOString(),
+
+        last_contact_date: new Date().toISOString(),
+
+        last_email_type: "initial",
+
+        follow_up_count: 0,
+
+        auto_followup_enabled: true,
+
         follow_up_date: new Date(
           Date.now() + 7 * 24 * 60 * 60 * 1000,
         ).toISOString(),
