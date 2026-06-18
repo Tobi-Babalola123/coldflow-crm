@@ -102,7 +102,7 @@ export default function DashboardPage() {
   if (loading || !stats) {
     return (
       <div className="p-8">
-        <p className="text-muted-foreground">Loading dashboard...</p>
+        <p className="text-muted-foreground">Loading dashboard....</p>
       </div>
     );
   }
