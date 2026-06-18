@@ -26,15 +26,15 @@ export async function GET() {
     const emailContent = generateFollowUpEmail(lead);
 
     await emailjs.send(
-      process.env.EMAILJS_SERVICE_ID!,
-      process.env.EMAILJS_TEMPLATE_ID!,
+      process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+      process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
       {
         to_email: lead.company_email,
         name: lead.company_name,
         subject: emailContent.subject,
         message: emailContent.message,
       },
-      process.env.EMAILJS_PUBLIC_KEY!,
+      process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
     );
 
     return NextResponse.json({
