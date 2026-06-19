@@ -103,7 +103,10 @@ export default function LeadsPage() {
     alert("Follow-up sent!");
 
     // refresh leads
-    const { data: refreshed } = await supabase.from("leads").select("*");
+    const { data: refreshed } = await supabase
+      .from("leads")
+      .select("*")
+      .order("created_at", { ascending: false });
     setLeads(refreshed || []);
   };
 
@@ -174,6 +177,8 @@ export default function LeadsPage() {
                 <th className="text-left p-3">Company</th>
                 <th className="text-left p-3">Email</th>
                 <th className="text-left p-3">Status</th>
+                <th className="text-left p-3">Follow-Ups</th>
+                <th className="text-left p-3">Last Contact</th>
                 <th className="text-left p-3">Created</th>
                 <th className="text-right p-3">Actions</th>
               </tr>
@@ -182,6 +187,17 @@ export default function LeadsPage() {
             <tbody>
               {paginatedLeads.map((lead) => (
                 <tr key={lead.id} className="border-b border-border">
+                  <td className="p-3">
+                    <span className="text-sm font-medium">
+                      {lead.follow_up_count || 0}/3
+                    </span>
+                  </td>
+
+                  <td className="p-3 text-xs text-muted-foreground">
+                    {lead.last_contact_date
+                      ? new Date(lead.last_contact_date).toLocaleDateString()
+                      : "Never"}
+                  </td>
                   <td className="p-3 font-medium">{lead.company_name}</td>
 
                   <td className="p-3 text-muted-foreground flex items-center gap-2">
@@ -235,11 +251,22 @@ export default function LeadsPage() {
 
                     {/* FOLLOW-UP BUTTON */}
                     <button
-                      onClick={() => sendFollowUp(lead.id)}
-                      className="flex items-center gap-1 px-3 py-1 text-xs rounded-md bg-orange-500 text-white hover:bg-orange-600"
+                      disabled={(lead.follow_up_count || 0) >= 3}
+                      onClick={() => {
+                        console.log("Lead clicked:", lead);
+                        sendFollowUp(lead.id);
+                      }}
+                      className={`flex items-center gap-1 px-3 py-1 text-xs rounded-md text-white ${
+                        (lead.follow_up_count || 0) >= 3
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-orange-500 hover:bg-orange-600"
+                      }`}
                     >
                       <Send className="w-3 h-3" />
-                      Follow-up
+
+                      {(lead.follow_up_count || 0) >= 3
+                        ? "Completed"
+                        : `Follow-up #${(lead.follow_up_count || 0) + 1}`}
                     </button>
                   </td>
                 </tr>

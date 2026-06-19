@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { Send, Upload, Paperclip, FileText, MoreVertical } from "lucide-react";
 import { sendEmailJS } from "@/lib/emailjs";
-import emailjs from "@emailjs/browser";
+import emailjs from "@emailjs/nodejs";
 
 const templates = {
   "1": {

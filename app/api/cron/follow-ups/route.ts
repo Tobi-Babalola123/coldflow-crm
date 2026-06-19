@@ -1,47 +1,87 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import emailjs from "@emailjs/browser";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateFollowUpEmail } from "@/lib/email-generator";
+import emailjs from "@emailjs/nodejs";
 
-export async function GET() {
+export async function POST() {
   try {
-    const today = new Date().toISOString();
+    console.log("CRON FOLLOW-UP STARTED");
 
-    // 1. Get all leads due for follow-up
-    const { data: leads, error } = await supabase
+    const now = new Date().toISOString();
+
+    // 1. Find all leads that are due for follow-up
+    const { data: leads, error } = await supabaseAdmin
       .from("leads")
       .select("*")
-      .lte("follow_up_date", today)
-      .neq("status", "completed");
+      .lte("follow_up_date", now)
+      .eq("auto_followup_enabled", true)
+      .lt("follow_up_count", 3);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      throw error;
     }
 
     if (!leads || leads.length === 0) {
-      return NextResponse.json({ message: "No follow-ups due" });
+      return NextResponse.json({
+        message: "No follow-ups due",
+      });
     }
 
-    // 2. Loop through leads and send emails
-    const emailContent = generateFollowUpEmail(lead);
+    console.log(`Found ${leads.length} follow-ups`);
 
-    await emailjs.send(
-      process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-      process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
-      {
-        to_email: lead.company_email,
-        name: lead.company_name,
-        subject: emailContent.subject,
-        message: emailContent.message,
-      },
-      process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
-    );
+    // 2. Send follow-up emails
+    for (const lead of leads) {
+      const emailContent = generateFollowUpEmail(lead);
+
+      await emailjs.send(
+        process.env.EMAILJS_SERVICE_ID!,
+        process.env.EMAILJS_TEMPLATE_ID!,
+        {
+          to_email: lead.company_email,
+          name: lead.company_name,
+          subject: emailContent.subject,
+          message: emailContent.message,
+        },
+        {
+          publicKey: process.env.EMAILJS_PUBLIC_KEY!,
+        },
+      );
+
+      // 3. Update lead after successful email
+      await supabaseAdmin
+        .from("leads")
+        .update({
+          follow_up_count: (lead.follow_up_count || 0) + 1,
+
+          last_contact_date: new Date().toISOString(),
+
+          last_follow_up_sent: new Date().toISOString(),
+
+          follow_up_date: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+
+          status: "follow_up_due",
+        })
+        .eq("id", lead.id);
+
+      console.log(`Follow-up sent to ${lead.company_email}`);
+    }
 
     return NextResponse.json({
       success: true,
       sent: leads.length,
     });
   } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("CRON FOLLOW-UP ERROR:", err);
+
+    return NextResponse.json(
+      {
+        error: err.message || "Cron failed",
+      },
+      {
+        status: 500,
+      },
+    );
   }
 }

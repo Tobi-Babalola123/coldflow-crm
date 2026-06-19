@@ -1,5 +1,5 @@
 // lib/emailjs.ts
-import emailjs from "@emailjs/browser";
+import emailjs from "@emailjs/nodejs";
 
 export const sendEmailJS = async (data: {
   to: string;
