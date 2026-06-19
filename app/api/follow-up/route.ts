@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import emailjs from "@emailjs/nodejs";
 import { generateFollowUpEmail } from "@/lib/email-generator";
 console.log("FOLLOW-UP ROUTE LOADED");
 
@@ -40,9 +39,9 @@ export async function POST(req: Request) {
 
     // 3. Generate follow-up email
     const emailContent = generateFollowUpEmail(lead);
-
+    const emailjs = await import("@emailjs/nodejs");
     // 4. Send email through EmailJS
-    await emailjs.send(
+    await emailjs.default.send(
       process.env.EMAILJS_SERVICE_ID!,
       process.env.EMAILJS_TEMPLATE_ID!,
       {
