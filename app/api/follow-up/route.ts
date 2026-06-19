@@ -51,7 +51,7 @@ export async function POST(req: Request) {
         subject: emailContent.subject,
         message: emailContent.message,
       },
-        publicKey: process.env.EMAILJS_PUBLIC_KEY!,
+      process.env.EMAILJS_PUBLIC_KEY!,
     );
 
     // 5. Update lead after successful sending
