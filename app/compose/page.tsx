@@ -198,8 +198,8 @@ ${cvUrl}`
       // EMAILJS SEND (REPLACEMENT HERE)
       // ================================
       const emailRes = await emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
+        process.env.EMAILJS_SERVICE_ID!,
+        process.env.EMAILJS_TEMPLATE_ID!,
         {
           to_email: to,
           subject: subject,
@@ -208,7 +208,7 @@ ${cvUrl}`
           company_website: companyWebsite,
           // name: "companyName", //
         },
-        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
+        process.env.EMAILJS_PUBLIC_KEY!,
       );
 
       console.log("EMAILJS RESPONSE:", emailRes);
