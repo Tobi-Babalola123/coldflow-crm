@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase-admin";
+import { supabase } from "@/lib/supabase";
+import emailjs from "@emailjs/browser";
 import { generateFollowUpEmail } from "@/lib/email-generator";
 console.log("FOLLOW-UP ROUTE LOADED");
 
@@ -16,7 +17,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Get the specific lead
-    const { data: lead, error } = await supabaseAdmin
+    const { data: lead, error } = await supabase
       .from("leads")
       .select("*")
       .eq("id", leadId)
@@ -39,9 +40,8 @@ export async function POST(req: Request) {
 
     // 3. Generate follow-up email
     const emailContent = generateFollowUpEmail(lead);
-    const emailjs = await import("@emailjs/nodejs");
     // 4. Send email through EmailJS
-    await emailjs.default.send(
+    await emailjs.send(
       process.env.EMAILJS_SERVICE_ID!,
       process.env.EMAILJS_TEMPLATE_ID!,
       {
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     );
 
     // 5. Update lead after successful sending
-    await supabaseAdmin
+    await supabase
       .from("leads")
       .update({
         follow_up_count: (lead.follow_up_count || 0) + 1,
