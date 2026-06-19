@@ -174,12 +174,12 @@ export default function LeadsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
+                <th className="text-left p-3">Last contact</th>
+                <th className="text-left p-3">Created</th>
                 <th className="text-left p-3">Company</th>
                 <th className="text-left p-3">Email</th>
                 <th className="text-left p-3">Status</th>
-                <th className="text-left p-3">Follow-Ups</th>
-                <th className="text-left p-3">Last Contact</th>
-                <th className="text-left p-3">Created</th>
+                <th className="text-left p-3">Follow-ups</th>
                 <th className="text-right p-3">Actions</th>
               </tr>
             </thead>
