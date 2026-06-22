@@ -149,7 +149,18 @@ export default function ComposePage() {
 
     const files = Array.from(e.target.files);
 
-    setAttachments((prev) => [...prev, ...files]);
+    const maxSize = 10 * 1024 * 1024; // 10MB
+
+    const validFiles = files.filter((file) => {
+      if (file.size > maxSize) {
+        alert(`${file.name} is larger than 10MB`);
+        return false;
+      }
+
+      return true;
+    });
+
+    setAttachments((prev) => [...prev, ...validFiles]);
   };
 
   // const fileToBase64 = (file: File): Promise<string> => {
