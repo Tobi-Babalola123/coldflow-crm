@@ -173,26 +173,26 @@ export default function ComposePage() {
         throw new Error("Session expired. Please login again.");
       }
 
-      let cvPath: string | null = null;
-      let cvUrl: string | null = null;
+      const uploadedUrls: string[] = [];
 
-      // Upload CV first
-      if (attachments.length > 0) {
-        cvPath = await uploadCV(attachments[0]);
+      for (const file of attachments) {
+        const path = await uploadCV(file);
 
-        const { data } = supabase.storage.from("cv-files").getPublicUrl(cvPath);
+        const { data } = supabase.storage.from("cv-files").getPublicUrl(path);
 
-        cvUrl = data.publicUrl;
+        uploadedUrls.push(data.publicUrl);
       }
 
-      const messageWithCV = cvUrl
-        ? `${content}
+      const messageWithCV =
+        uploadedUrls.length > 0
+          ? `${content}
 
 --------------------------------
 
-CV / Resume:
-${cvUrl}`
-        : content;
+Attachments:
+
+${uploadedUrls.join("\n")}`
+          : content;
 
       // ================================
       // EMAILJS SEND (REPLACEMENT HERE)
@@ -417,10 +417,16 @@ ${cvUrl}`
                         {file.name}{" "}
                       </span>{" "}
                     </div>{" "}
-                    <button className="text-muted-foreground hover:text-foreground">
-                      {" "}
-                      <MoreVertical className="h-4 w-4" />{" "}
-                    </button>{" "}
+                    <button
+                      onClick={() =>
+                        setAttachments((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        )
+                      }
+                      className="text-red-500"
+                    >
+                      Remove
+                    </button>
                   </div>
                 ))}{" "}
               </div>
