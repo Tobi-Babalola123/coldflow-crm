@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/lib/supabase";
 import { Send, Upload, Paperclip, FileText, MoreVertical } from "lucide-react";
-import { sendEmailJS } from "@/lib/emailjs";
-import emailjs from "@emailjs/browser";
+// import { sendEmailJS } from "@/lib/emailjs";
+// import emailjs from "@emailjs/browser";
 
 const templates = {
   "1": {
@@ -152,6 +152,25 @@ export default function ComposePage() {
     setAttachments((prev) => [...prev, ...files]);
   };
 
+  // const fileToBase64 = (file: File): Promise<string> => {
+  //   return new Promise((resolve, reject) => {
+  //     const reader = new FileReader();
+
+  //     reader.readAsDataURL(file);
+
+  //     reader.onload = () => {
+  //       const result = reader.result as string;
+
+  //       // Remove "data:application/pdf;base64,"
+  //       const base64 = result.split(",")[1];
+
+  //       resolve(base64);
+  //     };
+
+  //     reader.onerror = (error) => reject(error);
+  //   });
+  // };
+
   const handleSendEmail = async () => {
     try {
       setUploading(true);
@@ -195,28 +214,35 @@ ${uploadedUrls.join("\n")}`
           : content;
 
       // ================================
-      // EMAILJS SEND (REPLACEMENT HERE)
+      // NODEMAILER SEND
       // ================================
-      const emailRes = await emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
-        {
-          to_email: to,
-          subject: subject,
-          message: messageWithCV,
-          company_name: companyName,
-          company_website: companyWebsite,
-          // name: "companyName", //
-        },
-        process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
-      );
 
-      console.log("EMAILJS RESPONSE:", emailRes);
+      const formData = new FormData();
 
-      // Optional safety check
-      if (emailRes.status !== 200) {
-        throw new Error("Email sending failed via EmailJS");
+      formData.append("to", to);
+      formData.append("subject", subject);
+      formData.append("message", content);
+      formData.append("companyName", companyName);
+      formData.append("companyWebsite", companyWebsite);
+
+      if (attachments.length > 0) {
+        attachments.forEach((file) => {
+          formData.append("attachments", file);
+        });
       }
+
+      const emailRes = await fetch("/api/send-email", {
+        method: "POST",
+        body: formData,
+      });
+
+      const emailData = await emailRes.json();
+
+      if (!emailRes.ok) {
+        throw new Error(emailData.error || "Email sending failed");
+      }
+
+      console.log("NODEMAILER RESPONSE:", emailData);
 
       // ================================
       // SAVE LEAD (UNCHANGED)
@@ -229,7 +255,7 @@ ${uploadedUrls.join("\n")}`
         subject,
         message: content,
 
-        cv_url: cvPath,
+        cv_url: uploadedUrls[0] || null,
 
         status: "sent",
 
