@@ -21,6 +21,9 @@ export async function POST(req: Request) {
       }),
     );
 
+    console.log("EMAIL_USER:", process.env.EMAIL_USER);
+    console.log("EMAIL_PASSWORD EXISTS:", !!process.env.EMAIL_PASSWORD);
+
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 465,
