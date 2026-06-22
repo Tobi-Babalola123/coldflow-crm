@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import emailjs from "@emailjs/browser";
 import { generateFollowUpEmail } from "@/lib/email-generator";
+import nodemailer from "nodemailer";
+
 console.log("FOLLOW-UP ROUTE LOADED");
 
 export async function POST(req: Request) {
   try {
     const { leadId } = await req.json();
+
     console.log("Received lead ID:", leadId);
 
     if (!leadId) {
@@ -40,18 +42,31 @@ export async function POST(req: Request) {
 
     // 3. Generate follow-up email
     const emailContent = generateFollowUpEmail(lead);
-    // 4. Send email through EmailJS
-    await emailjs.send(
-      process.env.EMAILJS_SERVICE_ID!,
-      process.env.EMAILJS_TEMPLATE_ID!,
-      {
-        to_email: lead.company_email,
-        name: lead.company_name,
-        subject: emailContent.subject,
-        message: emailContent.message,
+
+    // 4. Send email through Nodemailer
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD,
       },
-      process.env.EMAILJS_PUBLIC_KEY!,
-    );
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+
+      to: lead.company_email,
+
+      subject: emailContent.subject,
+
+      text: emailContent.message,
+    });
+
+    console.log("Follow-up email sent successfully");
 
     // 5. Update lead after successful sending
     await supabase
@@ -77,8 +92,12 @@ export async function POST(req: Request) {
     console.error("Follow-up error:", err);
 
     return NextResponse.json(
-      { error: err.message || "Failed to send follow-up" },
-      { status: 500 },
+      {
+        error: err.message || "Failed to send follow-up",
+      },
+      {
+        status: 500,
+      },
     );
   }
 }
