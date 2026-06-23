@@ -7,8 +7,10 @@ import { StatsCard } from "@/components/stats-card";
 import { CampaignChart } from "@/components/campaign-chart";
 import { RecentActivity } from "@/components/recent-activity";
 import { Users, Mail, TrendingUp, Clock } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ export default function DashboardPage() {
 
           <button
             className="px-4 py-2 text-sm rounded-md bg-orange-500 text-white hover:bg-orange-600"
-            onClick={() => console.log(dueFollowUps)}
+            onClick={() => router.push("/leads?filter=followups")}
           >
             View
           </button>

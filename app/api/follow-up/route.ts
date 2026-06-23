@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+// import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateFollowUpEmail } from "@/lib/email-generator";
 import nodemailer from "nodemailer";
 
 console.log("FOLLOW-UP ROUTE LOADED");
+
+export async function GET() {
+  return Response.json({
+    success: true,
+    message: "Follow-up route is alive",
+  });
+}
 
 export async function POST(req: Request) {
   try {
@@ -19,11 +27,16 @@ export async function POST(req: Request) {
     }
 
     // 1. Get the specific lead
-    const { data: lead, error } = await supabase
+    console.log("Searching for lead:", leadId);
+
+    const { data: lead, error } = await supabaseAdmin
       .from("leads")
       .select("*")
       .eq("id", leadId)
       .single();
+
+    console.log("Lead result:", lead);
+    console.log("Lead error:", error);
 
     console.log("Supabase error:", error);
     console.log("Found lead:", lead);
@@ -69,7 +82,7 @@ export async function POST(req: Request) {
     console.log("Follow-up email sent successfully");
 
     // 5. Update lead after successful sending
-    await supabase
+    await supabaseAdmin
       .from("leads")
       .update({
         follow_up_count: (lead.follow_up_count || 0) + 1,

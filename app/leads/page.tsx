@@ -6,6 +6,7 @@ import { Card } from "@/components/cards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { useSearchParams } from "next/navigation";
 import {
   Search,
   Plus,
@@ -36,6 +37,13 @@ export default function LeadsPage() {
   const itemsPerPage = 10;
   const [showFollowUps, setShowFollowUps] = useState(false);
   const [selectedLead, setSelectedLead] = useState<any>(null);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("filter") === "followups") {
+      setShowFollowUps(true);
+    }
+  }, [searchParams]);
 
   // 🔥 FETCH REAL DATA
   useEffect(() => {
@@ -69,8 +77,9 @@ export default function LeadsPage() {
 
       const isDueToday =
         lead.follow_up_date &&
-        new Date(lead.follow_up_date).toDateString() ===
-          new Date().toDateString();
+        new Date(lead.follow_up_date) <= new Date() &&
+        lead.status !== "replied" &&
+        lead.status !== "converted";
 
       const matchesFollowUp = !showFollowUps || isDueToday;
 
@@ -138,6 +147,14 @@ export default function LeadsPage() {
         </div>
       </div>
 
+      {showFollowUps && (
+        <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+          <p className="text-sm font-medium text-red-500">
+            Showing leads with follow-ups due
+          </p>
+        </div>
+      )}
+
       {/* Search + Filter */}
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end">
         <div className="flex-1">
@@ -185,92 +202,118 @@ export default function LeadsPage() {
             </thead>
 
             <tbody>
-              {paginatedLeads.map((lead) => (
-                <tr key={lead.id} className="border-b border-border">
-                  <td className="p-3">
-                    <span className="text-sm font-medium">
-                      {lead.follow_up_count || 0}/3
-                    </span>
-                  </td>
+              {paginatedLeads.map((lead) => {
+                const isDueFollowUp =
+                  lead.follow_up_date &&
+                  new Date(lead.follow_up_date) <= new Date() &&
+                  lead.status !== "replied" &&
+                  lead.status !== "hired" &&
+                  lead.status !== "rejected";
 
-                  <td className="p-3 text-xs text-muted-foreground">
-                    {lead.last_contact_date
-                      ? new Date(lead.last_contact_date).toLocaleDateString()
-                      : "Never"}
-                  </td>
-                  <td className="p-3 font-medium">{lead.company_name}</td>
+                return (
+                  <tr
+                    key={lead.id}
+                    className={`border-b ${
+                      isDueFollowUp
+                        ? "bg-red-500/15 border-l-4 border-l-red-500"
+                        : "border-border"
+                    }`}
+                  >
+                    <td className="p-3">
+                      <span className="text-sm font-medium">
+                        {lead.follow_up_count || 0}/3
+                      </span>
+                    </td>
 
-                  <td className="p-3 text-muted-foreground flex items-center gap-2">
-                    <Mail className="h-4 w-4" />
-                    {lead.company_email}
-                  </td>
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {lead.last_contact_date
+                        ? new Date(lead.last_contact_date).toLocaleDateString()
+                        : "Never"}
+                    </td>
 
-                  <td className="p-3">
-                    <select
-                      value={lead.status || "sent"}
-                      onChange={async (e) => {
-                        const newStatus = e.target.value;
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{lead.company_name}</span>
 
-                        // update DB
-                        await supabase
-                          .from("leads")
-                          .update({ status: newStatus })
-                          .eq("id", lead.id);
+                        {isDueFollowUp && (
+                          <Badge className="bg-red-500 text-white animate-pulse">
+                            Follow-up Due
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
 
-                        // update UI instantly (no refresh needed)
-                        setLeads((prev) =>
-                          prev.map((l) =>
-                            l.id === lead.id ? { ...l, status: newStatus } : l,
-                          ),
-                        );
-                      }}
-                      className="px-2 py-1 text-xs rounded border border-border bg-card text-foreground"
-                    >
-                      <option value="sent">Sent</option>
-                      <option value="follow_up_due">Follow Up Due</option>
-                      <option value="replied">Replied</option>
-                      <option value="interview">Interview</option>
-                      <option value="rejected">Rejected</option>
-                      <option value="hired">Hired</option>
-                    </select>
-                  </td>
+                    <td className="p-3 text-muted-foreground flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      {lead.company_email}
+                    </td>
 
-                  <td className="p-3 text-xs text-muted-foreground">
-                    {new Date(lead.created_at).toLocaleDateString()}
-                  </td>
+                    <td className="p-3">
+                      <select
+                        value={lead.status || "sent"}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
 
-                  {/* ACTIONS */}
-                  <td className="p-3 text-right flex justify-end gap-2">
-                    {/* VIEW */}
-                    <button
-                      onClick={() => setSelectedLead(lead)}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      View
-                    </button>
+                          await supabase
+                            .from("leads")
+                            .update({ status: newStatus })
+                            .eq("id", lead.id);
 
-                    {/* FOLLOW-UP BUTTON */}
-                    <button
-                      disabled={(lead.follow_up_count || 0) >= 3}
-                      onClick={() => {
-                        console.log("Lead clicked:", lead);
-                        sendFollowUp(lead.id);
-                      }}
-                      className={`flex items-center gap-1 px-3 py-1 text-xs rounded-md text-white ${
-                        (lead.follow_up_count || 0) >= 3
-                          ? "bg-gray-400 cursor-not-allowed"
-                          : "bg-orange-500 hover:bg-orange-600"
-                      }`}
-                    >
-                      <Send className="w-3 h-3" />
+                          setLeads((prev) =>
+                            prev.map((l) =>
+                              l.id === lead.id
+                                ? { ...l, status: newStatus }
+                                : l,
+                            ),
+                          );
+                        }}
+                        className="px-2 py-1 text-xs rounded border border-border bg-card text-foreground"
+                      >
+                        <option value="sent">Sent</option>
+                        <option value="follow_up_due">Follow Up Due</option>
+                        <option value="replied">Replied</option>
+                        <option value="interview">Interview</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="hired">Hired</option>
+                      </select>
+                    </td>
 
-                      {(lead.follow_up_count || 0) >= 3
-                        ? "Completed"
-                        : `Follow-up #${(lead.follow_up_count || 0) + 1}`}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                    <td className="p-3 text-xs text-muted-foreground">
+                      {new Date(lead.created_at).toLocaleDateString()}
+                    </td>
+
+                    <td className="p-3 text-right flex justify-end gap-2">
+                      <button
+                        onClick={() => setSelectedLead(lead)}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        View
+                      </button>
+
+                      <button
+                        disabled={(lead.follow_up_count || 0) >= 3}
+                        onClick={() => {
+                          console.log("Lead clicked:", lead);
+                          sendFollowUp(lead.id);
+                        }}
+                        className={`flex items-center gap-1 px-3 py-1 text-xs rounded-md text-white ${
+                          (lead.follow_up_count || 0) >= 3
+                            ? "bg-gray-400 cursor-not-allowed"
+                            : isDueFollowUp
+                              ? "bg-red-500 hover:bg-red-600"
+                              : "bg-orange-500 hover:bg-orange-600"
+                        }`}
+                      >
+                        <Send className="w-3 h-3" />
+
+                        {(lead.follow_up_count || 0) >= 3
+                          ? "Completed"
+                          : `Follow-up #${(lead.follow_up_count || 0) + 1}`}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
